@@ -1,10 +1,12 @@
 ﻿using Assisticant;
+using Assisticant.Descriptors;
 using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace SimplestAssisticantTest
 {
@@ -27,15 +29,14 @@ namespace SimplestAssisticantTest
         [TestMethod]
         public void ViewModelPropertyChangeTest()
         {
-            ForView.Initialize();
             object proxy = ForView.Wrap(new TestModel()
             {
                 Name = "TestName",
                 Count = 6,
             });
 
-            TestModel tmv = ForView.Unwrap<TestModel>(proxy);
-            Assert.AreEqual(tmv.NameAndCount, "TestName - 6");
+            string nameAndCount = (string)GetValue<TestModel>(proxy, "NameAndCount");
+            Assert.AreEqual(nameAndCount, "TestName - 6");
 
             bool propChanged = false;
             var pc = proxy.GetType().GetEvent("PropertyChanged");
@@ -49,13 +50,14 @@ namespace SimplestAssisticantTest
 
             pc.AddEventHandler(proxy, te);
 
+            TestModel tmv = ForView.Unwrap<TestModel>(proxy);
             tmv.IncCount();
 
             //normally, this would happen automatically at then end of the UI thread message cycle
             //but because we're in test, there isn't one, so process the queued messages directly instead
             Process();
 
-
+            nameAndCount = (string)GetValue<TestModel>(proxy, "NameAndCount");
             Assert.AreEqual(tmv.NameAndCount, "TestName - 7");
 
             propChanged.Should().BeTrue();
@@ -65,6 +67,16 @@ namespace SimplestAssisticantTest
         {
             while (_updateQueue.Any())
                 _updateQueue.Dequeue()();
+        }
+
+        private object GetValue<T>(object proxy, string propertyName)
+        {
+            return PlatformProxy<T>.TypeDescriptor
+                .GetProperties()
+                .OfType<PropertyDescriptor>()
+                .Where(p => p.Name == propertyName)
+                .Select(p => p.GetValue(proxy))
+                .Single();
         }
     }
 }
