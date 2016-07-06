@@ -39,16 +39,11 @@ namespace SimplestAssisticantTest
             Assert.AreEqual(nameAndCount, "TestName - 6");
 
             bool propChanged = false;
-            var pc = proxy.GetType().GetEvent("PropertyChanged");
-            var te = Delegate.CreateDelegate(
-                pc.EventHandlerType,
-                null,
-                new PropertyChangedEventHandler((object sender, PropertyChangedEventArgs e) =>
-                {
-                    propChanged = true;
-                }).Method);
-
-            pc.AddEventHandler(proxy, te);
+            var inpc = (INotifyPropertyChanged)proxy;
+            inpc.PropertyChanged += delegate (object sender, PropertyChangedEventArgs e)
+            {
+                propChanged = true;
+            };
 
             TestModel tmv = ForView.Unwrap<TestModel>(proxy);
             tmv.IncCount();
